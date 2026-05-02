@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://task-manager-app-kw6i.onrender.com';
 
 function App() {
   const [tasks, setTasks] = useState([]);
