@@ -13,6 +13,8 @@ mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('MongoDB Connected'))
     .catch(err => console.error(err));
 
+const isDatabaseReady = () => mongoose.connection.readyState === 1;
+
 const UserSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true }
@@ -47,6 +49,7 @@ app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ msg: 'Missing fields' });
+        if (!isDatabaseReady()) return res.status(503).json({ msg: 'Database not connected' });
         const exists = await User.findOne({ username });
         if (exists) return res.status(400).json({ msg: 'Username taken' });
         const salt = await bcrypt.genSalt(10);
@@ -56,7 +59,7 @@ app.post('/api/auth/register', async (req, res) => {
         res.json({ token, username: user.username });
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server Error');
+        res.status(500).json({ msg: err.message || 'Server Error' });
     }
 });
 
@@ -64,6 +67,7 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ msg: 'Missing fields' });
+        if (!isDatabaseReady()) return res.status(503).json({ msg: 'Database not connected' });
         const user = await User.findOne({ username });
         if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
         const isMatch = await bcrypt.compare(password, user.password);
@@ -72,7 +76,7 @@ app.post('/api/auth/login', async (req, res) => {
         res.json({ token, username: user.username });
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server Error');
+        res.status(500).json({ msg: err.message || 'Server Error' });
     }
 });
 
@@ -80,27 +84,30 @@ app.post('/api/tasks', authMiddleware, async (req, res) => {
     try {
         const { title, priority } = req.body;
         if (!title) return res.status(400).json({ msg: 'Title required' });
+        if (!isDatabaseReady()) return res.status(503).json({ msg: 'Database not connected' });
         const newTask = await Task.create({ title, priority: priority || 0, user: req.user.id });
         res.json(newTask);
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server Error');
+        res.status(500).json({ msg: err.message || 'Server Error' });
     }
 });
 
 app.get('/api/tasks', authMiddleware, async (req, res) => {
     try {
+        if (!isDatabaseReady()) return res.status(503).json({ msg: 'Database not connected' });
         const tasks = await Task.find({ user: req.user.id }).sort({ priority: -1, createdAt: -1 });
         res.json(tasks);
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server Error');
+        res.status(500).json({ msg: err.message || 'Server Error' });
     }
 });
 
 app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
+        if (!isDatabaseReady()) return res.status(503).json({ msg: 'Database not connected' });
         const updates = {};
         const { title, priority, completed } = req.body;
         if (title !== undefined) updates.title = title;
@@ -111,19 +118,20 @@ app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
         res.json(task);
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server Error');
+        res.status(500).json({ msg: err.message || 'Server Error' });
     }
 });
 
 app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
+        if (!isDatabaseReady()) return res.status(503).json({ msg: 'Database not connected' });
         const task = await Task.findOneAndDelete({ _id: id, user: req.user.id });
         if (!task) return res.status(404).json({ msg: 'Not found' });
         res.json({ msg: 'Deleted' });
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server Error');
+        res.status(500).json({ msg: err.message || 'Server Error' });
     }
 });
 

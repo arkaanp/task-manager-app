@@ -16,6 +16,15 @@ function App() {
 
   const authHeaders = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
 
+  const readJsonOrText = async (res) => {
+    const text = await res.text();
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      return { msg: text };
+    }
+  };
+
   const fetchTasks = async () => {
     if (!token) return;
     try {
@@ -42,7 +51,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: authUser, password: authPass })
       });
-      const data = await res.json();
+      const data = await readJsonOrText(res);
       if (res.ok && data.token) {
         setToken(data.token);
         setUsername(data.username);
